@@ -38,11 +38,11 @@ font-size: 14px;
 }}
 .content {{
 border: 1px solid #333;
-padding: 8px;
+padding: 2px 4px;
 background-color: #fafafa;
 word-wrap: break-word;
 white-space: pre-wrap;
-line-height: 1.4;
+line-height: 1.2;
 min-height: auto;
 font-size: 10pt;
 }}
@@ -60,6 +60,8 @@ page-break-inside: avoid;
 <div class="header">연구노트</div>
 
 <div class="signature-section">
+<span><strong>작성일:</strong> {data.get('작성일', '')}</span>
+<span style="margin: 0 20px;"></span>
 <span><strong>작성자:</strong> {data.get('작성자_이름', '')}</span>
 <span style="display: inline-block; border-bottom: 1px solid #333; width: 80px; margin: 0 20px;"></span>
 <span><strong>검토자:</strong> {data.get('검토자_이름', '')}</span>
@@ -71,10 +73,7 @@ page-break-inside: avoid;
 </div>
 
 <div class="section">
-<div class="section-title">2. 연구명칭 :</div>
-<div class="content">
-{data.get('연구명칭', '')}
-</div>
+<div class="section-title">2. 연구명칭 : {data.get('연구명칭', '')}</div>
 </div>
 
 <div class="section">
@@ -149,14 +148,18 @@ def main():
         st.session_state.data = {}
     
     # 작성자/검토자 정보
-    st.subheader("👥 작성자 및 검토자 정보")
-    col1, col2 = st.columns(2)
+    st.subheader("👥 작성일 및 작성자/검토자 정보")
+    col1, col2, col3 = st.columns(3)
     
     with col1:
+        작성일 = st.date_input("작성일", value=datetime.strptime(st.session_state.data.get('작성일', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d').date())
+        st.session_state.data['작성일'] = 작성일.strftime('%Y-%m-%d')
+    
+    with col2:
         작성자_이름 = st.text_input("작성자 이름", value=st.session_state.data.get('작성자_이름', ''), placeholder="작성자 이름을 입력하세요")
         st.session_state.data['작성자_이름'] = 작성자_이름
     
-    with col2:
+    with col3:
         검토자_이름 = st.text_input("검토자 이름", value=st.session_state.data.get('검토자_이름', ''), placeholder="검토자 이름을 입력하세요")
         st.session_state.data['검토자_이름'] = 검토자_이름
     
