@@ -25,6 +25,9 @@ margin-bottom: 20px;
 border-bottom: 2px solid black;
 padding-bottom: 8px;
 }}
+.signature-section {{
+margin-bottom: 20px;
+}}
 .section {{
 margin-bottom: 15px;
 }}
@@ -43,12 +46,6 @@ line-height: 1.4;
 min-height: auto;
 font-size: 10pt;
 }}
-.simple-content {{
-font-weight: bold;
-padding: 3px 0;
-border-bottom: 1px solid #ddd;
-margin-bottom: 8px;
-}}
 @media print {{
 body {{
 margin: 0;
@@ -61,6 +58,13 @@ page-break-inside: avoid;
 </head>
 <body>
 <div class="header">연구노트</div>
+
+<div class="signature-section">
+<span><strong>작성자:</strong> {data.get('작성자_이름', '')}</span>
+<span style="display: inline-block; border-bottom: 1px solid #333; width: 80px; margin: 0 20px;"></span>
+<span><strong>검토자:</strong> {data.get('검토자_이름', '')}</span>
+<span style="display: inline-block; border-bottom: 1px solid #333; width: 80px; margin: 0 20px;"></span>
+</div>
 
 <div class="section">
 <div class="section-title">1. 연구진행 : {data.get('selected_stage', '선택안함')}</div>
@@ -143,6 +147,20 @@ def main():
     # 세션 상태 초기화
     if 'data' not in st.session_state:
         st.session_state.data = {}
+    
+    # 작성자/검토자 정보
+    st.subheader("👥 작성자 및 검토자 정보")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        작성자_이름 = st.text_input("작성자 이름", value=st.session_state.data.get('작성자_이름', ''), placeholder="작성자 이름을 입력하세요")
+        st.session_state.data['작성자_이름'] = 작성자_이름
+    
+    with col2:
+        검토자_이름 = st.text_input("검토자 이름", value=st.session_state.data.get('검토자_이름', ''), placeholder="검토자 이름을 입력하세요")
+        st.session_state.data['검토자_이름'] = 검토자_이름
+    
+    st.markdown("---")
     
     # 1. 연구진행
     st.subheader("1. 연구진행 : E/S (단계 및 기획)")
