@@ -1,6 +1,84 @@
 import streamlit as st
 from datetime import datetime
 import base64
+import json
+import os
+
+TEMP_SAVE_DIR = "temp_saves"
+
+def ensure_temp_dir():
+    """임시저장 폴더 생성"""
+    if not os.path.exists(TEMP_SAVE_DIR):
+        os.makedirs(TEMP_SAVE_DIR)
+
+def save_to_temp_with_name(filename=None):
+    """이름을 지정해서 임시저장"""
+    ensure_temp_dir()
+    try:
+        if not filename:
+            filename = f"auto_save_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        filepath = os.path.join(TEMP_SAVE_DIR, filename)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            save_data = {
+                'save_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'save_name': filename.replace('.json', ''),
+                'data': st.session_state.data
+            }
+            json.dump(save_data, f, ensure_ascii=False, indent=2)
+        return True, filepath
+    except Exception as e:
+        st.error(f"임시저장 실패: {e}")
+        return False, None
+
+def get_temp_save_list():
+    """임시저장 파일 리스트 가져오기"""
+    ensure_temp_dir()
+    temp_files = []
+    
+    try:
+        for filename in os.listdir(TEMP_SAVE_DIR):
+            if filename.endswith('.json'):
+                filepath = os.path.join(TEMP_SAVE_DIR, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    
+                    file_info = {
+                        'filename': filename,
+                        'filepath': filepath,
+                        'save_time': data.get('save_time', '알 수 없음'),
+                        'save_name': data.get('save_name', filename.replace('.json', '')),
+                        'research_name': data.get('data', {}).get('연구명칭', '제목 없음'),
+                        'author': data.get('data', {}).get('작성자_이름', '작성자 없음')
+                    }
+                    temp_files.append(file_info)
+                except:
+                    continue
+    except:
+        pass
+    
+    temp_files.sort(key=lambda x: x['save_time'], reverse=True)
+    return temp_files
+
+def load_from_temp_file(filepath):
+    """특정 임시저장 파일 불러오기"""
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            save_data = json.load(f)
+        return save_data.get('data', {})
+    except Exception as e:
+        st.error(f"파일 불러오기 실패: {e}")
+        return None
+
+def delete_temp_file(filepath):
+    """임시저장 파일 삭제"""
+    try:
+        os.remove(filepath)
+        return True
+    except Exception as e:
+        st.error(f"파일 삭제 실패: {e}")
+        return False
 
 def create_print_html(data):
     """프린트용 HTML 생성"""
@@ -141,12 +219,63 @@ def main():
     st.set_page_config(page_title="연구노트 작성", layout="wide")
     
     st.title("🔬 연구노트")
-    st.markdown("---")
     
     # 세션 상태 초기화
     if 'data' not in st.session_state:
         st.session_state.data = {}
     
+    # 사이드바
+    with st.sidebar:
+        st.header("📁 파일 관리")
+        
+        # 현재 문서 저장
+        if st.session_state.get('data', {}):
+            st.write("**💾 임시 저장**")
+            save_name = st.text_input("저장 이름", placeholder="예) 카테터_연구_v1")
+            
+            if st.button("💾 저장", use_container_width=True):
+                if save_name:
+                    filename = f"{save_name}_{datetime.now().strftime('%m%d_%H%M')}.json"
+                    success, filepath = save_to_temp_with_name(filename)
+                    if success:
+                        st.success(f"✅ '{save_name}'로 저장!")
+                        st.rerun()
+                else:
+                    st.error("저장 이름을 입력하세요")
+        
+        st.markdown("---")
+        
+        # 저장된 파일 목록
+        temp_files = get_temp_save_list()
+        
+        if temp_files:
+            st.write(f"**📋 저장된 파일 ({len(temp_files)}개)**")
+            
+            for i, file_info in enumerate(temp_files):
+                with st.expander(f"📄 {file_info['save_name']}", expanded=False):
+                    st.write(f"**연구명:** {file_info['research_name']}")
+                    st.write(f"**작성자:** {file_info['author']}")
+                    st.write(f"**저장시간:** {file_info['save_time']}")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("📂 불러오기", key=f"load_{i}"):
+                            loaded_data = load_from_temp_file(file_info['filepath'])
+                            if loaded_data:
+                                st.session_state.data = loaded_data
+                                st.success("✅ 불러왔습니다!")
+                                st.rerun()
+                    
+                    with col2:
+                        if st.button("🗑️ 삭제", key=f"delete_{i}"):
+                            if delete_temp_file(file_info['filepath']):
+                                st.success("✅ 삭제했습니다!")
+                                st.rerun()
+        else:
+            st.info("💡 '저장' 버튼으로 파일을 저장하세요")
+    
+    st.markdown("---")
+            
     # 작성자/검토자 정보
     st.subheader("👥 작성일 및 작성자/검토자 정보")
     col1, col2, col3 = st.columns(3)
@@ -271,8 +400,9 @@ def main():
     st.markdown("---")
     
     # 버튼들
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
         if st.button("🖨️ 프린트", type="primary", use_container_width=True):
             html_content = create_print_html(st.session_state.data)
             
@@ -289,12 +419,11 @@ def main():
             
             with st.expander("📋 프린트 미리보기"):
                 st.components.v1.html(html_content, height=800, scrolling=True)
-    
-    with col3:
+
+    with col2:
         if st.button("🔄 초기화", type="secondary", use_container_width=True):
             st.session_state.data = {}
             st.rerun()
 
 if __name__ == "__main__":
     main()
-    # streamlit run 연구일지.py
